@@ -1,0 +1,1388 @@
+diff --git a/src/activities/drawing/BackgroundColorsPalette.qml b/src/activities/drawing/BackgroundColorsPalette.qml
+deleted file mode 100644
+index 6750fdb..0000000
+--- a/src/activities/drawing/BackgroundColorsPalette.qml
++++ /dev/null
+@@ -1,76 +0,0 @@
+-/* GCompris - backgroundColorPalette.qml
+- *
+- * Copyright (C) 2018 Amit Sagtani <asagtani06@gmail.com>
+- *
+- *   This program is free software; you can redistribute it and/or modify
+- *   it under the terms of the GNU General Public License as published by
+- *   the Free Software Foundation; either version 3 of the License, or
+- *   (at your option) any later version.
+- *
+- *   This program is distributed in the hope that it will be useful,
+- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- *   GNU General Public License for more details.
+- *
+- *   You should have received a copy of the GNU General Public License
+- *   along with this program; if not, see <http://www.gnu.org/licenses/>.
+- */
+-
+-import QtQuick 2.6
+-import "drawing.js" as Activity
+-import "../../core"
+-import GCompris 1.0
+-
+-Rectangle {
+-    id: colorPalette
+-    width: background.width * 0.85
+-    height: background.height * 0.70
+-    radius: 10
+-    anchors.centerIn: parent
+-    color: foldablePanels.panelColor
+-
+-    MouseArea {
+-        anchors.fill: parent
+-    }
+-
+-    // The close panel button
+-    GCButtonCancel {
+-        id: cancelButton
+-        width: background.width > background.height ? 60 * ApplicationInfo.ratio : 45 * ApplicationInfo.ratio
+-        height: width
+-        visible: items.backgroundColorPalette.visible
+-        onClose: items.backgroundColorPalette.visible = false
+-    }
+-
+-    GridView {
+-        id: colorRepeater
+-        model: foldablePanels.colorModel
+-        anchors.top: cancelButton.bottom
+-        anchors.horizontalCenter: colorPalette.horizontalCenter
+-        width: parent.width * 0.95
+-        visible: colorPalette.visible
+-        height: parent.height * 0.90
+-        cellWidth: (parent.width * 0.95) / 4
+-        cellHeight: (parent.height * 0.90) / 4
+-        interactive: false
+-        delegate: Rectangle {
+-            id: root
+-            radius: 10
+-            width: colorRepeater.cellWidth * 0.80
+-            height: colorRepeater.cellHeight * 0.80
+-            color: modelData
+-            border.color: "grey"
+-            border.width: 3
+-            MouseArea {
+-                anchors.fill: parent
+-                hoverEnabled: true
+-                onEntered: parent.scale = 1.1
+-                onExited: parent.scale = 1
+-                onClicked: {
+-                    items.backgroundColor = root.color
+-                    items.backgroundColorPalette.visible = false
+-                }
+-            }
+-        }
+-    }
+-}
+diff --git a/src/activities/drawing/ColorDialog.qml b/src/activities/drawing/ColorDialog.qml
+index ce24c9e..5b1a4dd 100644
+--- a/src/activities/drawing/ColorDialog.qml
++++ b/src/activities/drawing/ColorDialog.qml
+@@ -32,8 +32,8 @@ Rectangle {
+     property real saturation
+     property real lightness
+ 
+-    property real barHeight: height
+-    property real barWidth: width * 0.25
++    property int barHeight: height
++    property int barWidth: width * 0.25
+ 
+     property color currentColorCode: picker.currentColor()
+ 
+@@ -73,12 +73,12 @@ Rectangle {
+             h = ((r - g) / c) + 4
+         }
+ 
+-        picker.hue = (1 / 6) * h
++        picker.hue = (1/6) * h
+         console.log(picker.hue)
+         picker.saturation = (c / (1 - Math.abs(2 * ((max + min) / 2) - 1)))
+-        picker.lightness = (max + min) / 2
++        picker.lightness = (max + min)/2
+         sMarker.y = saturation * barHeight
+-        hsMarker.y = picker.hue >= 0 ? hue * barHeight : (1 + hue) * barHeight
++        hsMarker.y = hue * barHeight
+         lsMarker.y = (1 - lightness) * barHeight
+ 
+         return true;
+@@ -136,7 +136,7 @@ Rectangle {
+         anchors.leftMargin: 10
+ 
+         onPositionChanged: {
+-            picker.saturation = mouse.y / height
++            picker.saturation = mouse.y/height
+             sMarker.y = mouse.y > saturationBar.y+saturationBar.height ? Math.min(saturationBar.y + saturationBar.height - 2 , mouse.y) :
+                                                                          Math.max(saturationBar.y, mouse.y)
+         }
+diff --git a/src/activities/drawing/Drawing.qml b/src/activities/drawing/Drawing.qml
+index 96dfb22..b8d4da7 100644
+--- a/src/activities/drawing/Drawing.qml
++++ b/src/activities/drawing/Drawing.qml
+@@ -36,7 +36,7 @@ ActivityBase {
+     pageComponent: Rectangle {
+         id: background
+         anchors.fill: parent
+-        color: items.backgroundColor
++        color: "#add8e6"
+         signal start
+         signal stop
+ 
+@@ -57,8 +57,6 @@ ActivityBase {
+         onHeightChanged: {
+             if (items.background.started) {
+                 items.widthHeightChanged = true
+-                items.foldablePanels.animTarget.y = -7
+-                items.foldablePanels.activePanel = "null"
+                 Activity.initLevel()
+             }
+         }
+@@ -112,17 +110,10 @@ ActivityBase {
+             property alias load: load
+             property alias mainRegion: main
+             property alias shape: shape
+-            property alias backgroundColorPalette: backgroundColorPalette
+             property int activeColorIndex: 1
+-            property alias foldablePanels: foldablePanels
+             property alias toolsMode: foldablePanels.toolsMode
+             property alias saveToFilePrompt: saveToFilePrompt
+-            property alias stampGhostImage: stampGhostImage
+-            property alias onBoardText: onBoardText
+-            property alias fileDialog: fileDialog
+-            property color paintColor: "#000000"
+-            property color lastActiveColor: "#000000"
+-            property color backgroundColor: "#ffffff"
++            property color paintColor: "#00ff00"
+             property string urlImage
+             property bool next: false
+             property bool next2: false
+@@ -132,10 +123,8 @@ ActivityBase {
+             property bool widthHeightChanged: false
+             property bool mainAnimationOnX: true
+             property bool undoRedo: false
+-            property bool eraserMode: false
+             property int sizeS: 2
+             property int index: 0
+-            property real globalOpacityValue: 1
+             property string toolSelected: "pencil"
+             property string patternType: "dot"
+             property string lastUrl
+@@ -194,9 +183,9 @@ ActivityBase {
+ 
+         function hideExpandedTools () {
+             // hide the inputTextFrame
+-            //            items.inputTextFrame.opacity = 0
+-            //            items.inputTextFrame.z = -1
+-            //            items.inputText.text = ""
++            items.inputTextFrame.opacity = 0
++            items.inputTextFrame.z = -1
++            items.inputText.text = ""
+         }
+ 
+         Rectangle {
+@@ -252,34 +241,16 @@ ActivityBase {
+                 property var ctx
+                 property string url: ""
+ 
+-                // For bucket-fill Tool
+-                property int startX: -1
+-                property int startY: -1
+-                property int finishX: -1
+-                property int finishY: -1
+-                property color fillColor: items.paintColor
+-                property bool isBucketDone: true
+-
+                 GCText {
+                     id: onBoardText
+                     text: ""
+                     color: items.paintColor
++                    // font.pointSize: (ApplicationSettings.baseFontSize + 32) * ApplicationInfo.fontRatio
+                     font.pointSize: items.sizeS * 10
+                     z: -1
+                     opacity: 0
+                 }
+ 
+-                Image {
+-                    id: stampGhostImage
+-                    source: items.toolsMode.activeStampImageSource
+-                    width: items.toolsMode.activeStampWidth
+-                    height: items.toolsMode.activeStampHeight
+-                    fillMode: Image.PreserveAspectFit
+-                    z: -1
+-                    opacity: 0.5
+-                    visible: items.toolSelected === "stamp"
+-                    onSourceChanged: items.toolsMode.activeStampDimensionRatio = sourceSize.width / sourceSize.height
+-                }
+ 
+                 function clearCanvas() {
+                     // clear all drawings from the board
+@@ -287,7 +258,7 @@ ActivityBase {
+                     ctx.beginPath()
+                     ctx.clearRect(0, 0, canvas.width, canvas.height);
+ 
+-                    //paintWhite()
++                    paintWhite()
+                     canvas.ctx.strokeStyle = "#ffffff"
+                 }
+ 
+@@ -306,13 +277,13 @@ ActivityBase {
+                 onImageLoaded: {
+                     // load images from files
+                     if (canvas.url != "") {
+-                        //canvas.clearCanvas()
+-                        canvas.ctx.drawImage(canvas.url, 0, 0, canvas.width, canvas.height)
+-                        //                        if (items.loadSavedImage) {
+-                        //                            canvas.ctx.drawImage(canvas.url, 0, 0, canvas.width, canvas.height)
+-                        //                        } else {
+-                        //                            canvas.ctx.drawImage(canvas.url, canvas.width / 2 - canvas.height / 2, 0, canvas.height, canvas.height)
+-                        //                        }
++                        canvas.clearCanvas()
++
++                        if (items.loadSavedImage) {
++                            canvas.ctx.drawImage(canvas.url, 0, 0, canvas.width, canvas.height)
++                        } else {
++                            canvas.ctx.drawImage(canvas.url, canvas.width / 2 - canvas.height / 2, 0, canvas.height, canvas.height)
++                        }
+ 
+                         // mark the loadSavedImage as finished
+                         items.loadSavedImage = false
+@@ -379,7 +350,7 @@ ActivityBase {
+                     id: area
+                     anchors.fill: parent
+ 
+-                    hoverEnabled: items.toolSelected === "text" || items.toolSelected === "stamp"
++                    hoverEnabled: false
+                     property var mappedMouse: mapToItem(parent, mouseX, mouseY)
+                     property var currentShape: items.toolSelected == "circle" ? circle : rectangle
+                     property real originalX
+@@ -388,16 +359,13 @@ ActivityBase {
+                     property real endY
+ 
+                     Timer {
+-                        id: moveOnBoard
+-                        property var moveTarget: items.toolSelected === "text" ? items.onBoardText : items.stampGhostImage
+-                        property real topMargin: moveTarget === items.onBoardText ? onBoardText.height * 0.8 : stampGhostImage.height / 2
+-                        property real leftMargin: moveTarget === items.onBoardText ? 0 : stampGhostImage.width / 2
++                        id: moveOnBoardText
+                         interval: 1
+                         repeat: true
+                         running: false
+                         triggeredOnStart: {
+-                            moveTarget.x = area.realMouseX - leftMargin
+-                            moveTarget.y = area.realMouseY - topMargin
++                            onBoardText.x = area.realMouseX
++                            onBoardText.y = area.realMouseY - onBoardText.height * 0.8
+                         }
+                     }
+ 
+@@ -485,8 +453,11 @@ ActivityBase {
+                         onBoardText.z = -1
+ 
+                         // stop the text following the cursor
+-                        if (moveOnBoard.running)
+-                            moveOnBoard.stop()
++                        if (moveOnBoardText.running)
++                            moveOnBoardText.stop()
++
++                        // disable hover
++                        area.hoverEnabled = false
+ 
+                         if (items.toolSelected == "line") {
+                             canvas.removeShadow()
+@@ -536,12 +507,14 @@ ActivityBase {
+                             canvas.requestPaint()
+                         }
+ 
++                        // Todo: Remove use of onBoardText and use items.sizeS for font size!
+                         if (items.toolSelected == "text" && onBoardText.text != "") {
+                             canvas.removeShadow()
+                             canvas.ctx.fillStyle = items.paintColor
+-                            canvas.ctx.font = inputTextFrame.font
+-                            console.log(inputTextFrame.font)
+-                            canvas.ctx.fillText(onBoardText.text,area.realMouseX,area.realMouseY)
++                            canvas.ctx.font = "15px" + ApplicationSettings.font
++                            console.log(ApplicationSettings.font)
++                            //canvas.ctx.font = items.sizeS * 10 + "pt sans-serif"
++                            canvas.ctx.strokeText(onBoardText.text,area.realMouseX,area.realMouseY)
+                             onBoardText.text = ""
+ 
+                             canvas.requestPaint()
+@@ -574,26 +547,17 @@ ActivityBase {
+                         else items.next = false
+ 
+                         // print("undo: " + Activity.undo.length + " redo: " + Activity.redo.length)
++                        area.hoverEnabled = false
+                     }
+ 
+                     onPositionChanged: {
+                         canvas.ctx = canvas.getContext('2d')
+-                        canvas.ctx.globalCompositeOperation = 'source-over'
+-
+-                        canvas.ctx.strokeStyle = items.eraserMode ? Qt.rgba(0, 0, 0, 1) :
+-                                                                    items.toolSelected == "pattern" ? canvas.ctx.createPattern(shape.toDataURL(), 'repeat') :
+-                                                                                                      items.toolSelected == "brush4" ? "black" :
+-                                                                                                                                       items.paintColor
++                        canvas.ctx.strokeStyle = items.toolSelected == "eraser" ? "#ffffff" :
++                                                                                  items.toolSelected == "pattern" ? canvas.ctx.createPattern(shape.toDataURL(), 'repeat') :
++                                                                                                                    items.toolSelected == "brush4" ? "black" :
++                                                                                                                                                     items.paintColor
+ 
+-                        if(items.eraserMode) {
+-                            canvas.ctx.globalCompositeOperation = 'destination-out'
+-                            canvas.ctx.fillStyle = Qt.rgba(0, 0, 0, 1)
+-                        }
+                         if (items.toolSelected == "pencil" || items.toolSelected == "eraser") {
+-                            if(items.toolSelected === "eraser") {
+-                                canvas.ctx.globalCompositeOperation = 'destination-out'
+-                            }
+-
+                             canvas.removeShadow()
+                             canvas.ctx = canvas.getContext('2d')
+                             canvas.ctx.lineWidth = items.toolSelected == "eraser" ?
+@@ -856,17 +820,16 @@ ActivityBase {
+ 
+                     onClicked: {
+                         if (items.toolSelected == "fill") {
+-                            canvas.startX = mouseX
+-                            canvas.startY = mouseY
+-                            Activity.paintBucket()
+-                        }
+-
+-                        if(items.toolSelected === "stamp") {
++                            canvas.removeShadow()
++                            canvas.ctx.fillStyle = items.paintColor
++                            canvas.ctx.beginPath()
++                            canvas.ctx.moveTo(0, 0)
++                            canvas.ctx.lineTo(background.width, 0)
++                            canvas.ctx.lineTo(background.width, background.height)
++                            canvas.ctx.lineTo(0, background.height)
++                            canvas.ctx.closePath()
++                            canvas.ctx.fill()
+                             canvas.requestPaint()
+-                            canvas.ctx.drawImage(items.toolsMode.activeStampImageSource, stampGhostImage.x, stampGhostImage.y,
+-                                                 stampGhostImage.width, stampGhostImage.height)
+-
+-                            stampGhostImage.z = -1
+                         }
+                     }
+                 }
+@@ -914,23 +877,5 @@ ActivityBase {
+         FoldablePanels {
+             id: foldablePanels
+         }
+-
+-        BackgroundColorsPalette {
+-            id: backgroundColorPalette
+-            visible: false
+-        }
+-
+-        FileDialog {
+-            id: fileDialog
+-            title: "Choose an image"
+-            selectMultiple: false
+-            nameFilters: [ "Image files (*.jpg *.png *.svg)"]
+-            //folder: shortcuts.home
+-            onAccepted: {
+-                console.log("You chose: " + fileDialog.fileUrls)
+-                items.toolsMode.activeStampImageSource = fileDialog.fileUrl
+-                console.log("You choose " + fileDialog.fileUrl)
+-            }
+-        }
+     }
+ }
+diff --git a/src/activities/drawing/FoldablePanels.qml b/src/activities/drawing/FoldablePanels.qml
+index 1a2bceb..528f4f4 100644
+--- a/src/activities/drawing/FoldablePanels.qml
++++ b/src/activities/drawing/FoldablePanels.qml
+@@ -29,12 +29,9 @@ Item {
+     property int tabWidth: background.width * 0.15
+     property int tabHeight: background.height * 0.06
+     property alias colorModel: colorModel
+-    property alias mainPanel: mainPanel
+-    property alias foldAnimation: foldAnimation
+     property string activePanel: "null"
+     property alias toolsMode: toolsMode
+     property color panelColor: "#1A1A1B"
+-    property string activeToolIconSource: "qrc:/gcompris/src/activities/drawing/resource/pen.svg"
+ 
+     ListModel {
+         id: menuModel
+@@ -56,20 +53,18 @@ Item {
+ 
+     ListModel {
+         id: toolsModel
+-        //        ListElement { itemName: qsTr("Pencil")
+-        //            imgSource: "qrc:/gcompris/src/activities/drawing/resource/pen.svg" }
+-        ListElement { itemName: qsTr("Brush")
+-            imgSource: "qrc:/gcompris/src/activities/drawing/resource/brush_paint.png" }
++        ListElement { itemName: qsTr("Pencil")
++            imgSource: "qrc:/gcompris/src/activities/drawing/resource/pen.svg" }
+         ListElement { itemName: qsTr("Geometric")
+             imgSource: "qrc:/gcompris/src/activities/drawing/resource/empty.svg" }
+         ListElement { itemName: qsTr("Text")
+             imgSource: "qrc:/gcompris/src/activities/drawing/resource/empty.svg" }
++        ListElement { itemName: qsTr("Brush")
++            imgSource: "qrc:/gcompris/src/activities/drawing/resource/brush_paint.png" }
+         ListElement { itemName: qsTr("Eraser")
+             imgSource: "qrc:/gcompris/src/activities/drawing/resource/erase.svg" }
+         ListElement { itemName: qsTr("Bucket fill")
+             imgSource: "qrc:/gcompris/src/activities/drawing/resource/fill.svg" }
+-        ListElement { itemName: qsTr("Stamp")
+-            imgSource: "qrc:/gcompris/src/activities/drawing/resource/empty.svg" }
+     }
+ 
+     ListModel {
+@@ -90,13 +85,13 @@ Item {
+         y: -7
+         MouseArea {
+             anchors.fill: parent
+-            enabled: (mainPanel.y < -5 && activePanel != "mainPanel") || (mainPanel.y > -5 && activePanel === "mainPanel")
++            enabled: (menuPanel.y < -5 && activePanel != "menuPanel") || (menuPanel.y > -5 && activePanel === "menuPanel")
+             onClicked: {
+                 animTarget = menuTitle
+                 colorGrid.visible = false
+                 menuGrid.visible = true
+-                root.activePanel = "mainPanel"
+-                if(mainPanel.panelUnFolded) {
++                root.activePanel = "menuPanel"
++                if(menuPanel.panelUnFolded) {
+                     foldAnimation.start()
+                 }
+                 else {
+@@ -114,7 +109,6 @@ Item {
+             anchors.fill: parent
+             horizontalAlignment: Text.AlignHCenter
+             verticalAlignment: Text.AlignVCenter
+-            wrapMode: Text.WordWrap
+             fontSizeMode: Text.Fit
+             color: "white"
+         }
+@@ -132,13 +126,13 @@ Item {
+ 
+         MouseArea {
+             anchors.fill: parent
+-            enabled: (mainPanel.y < -5 && activePanel != "toolsPanel") || (mainPanel.y > -5 && activePanel === "toolsPanel")
++            enabled: (menuPanel.y < -5 && activePanel != "toolsPanel") || (menuPanel.y > -5 && activePanel === "toolsPanel")
+             onClicked: {
+                 animTarget = toolsTitle
+                 colorGrid.visible = false
+                 menuGrid.visible = true
+                 root.activePanel = "toolsPanel"
+-                if(mainPanel.panelUnFolded) {
++                if(menuPanel.panelUnFolded) {
+                     foldAnimation.start()
+                 }
+                 else {
+@@ -156,7 +150,6 @@ Item {
+             anchors.fill: parent
+             horizontalAlignment: Text.AlignHCenter
+             verticalAlignment: Text.AlignVCenter
+-            wrapMode: Text.WordWrap
+             fontSizeMode: Text.Fit
+             color: "white"
+         }
+@@ -171,16 +164,16 @@ Item {
+         border.color: "white"
+         x: background.width - 2 * width - 2
+         y: -7
+-        z: mainPanel.z - 1
++        z: menuPanel.z - 1
+         MouseArea {
+             anchors.fill: parent
+-            enabled: (mainPanel.y < -5 && activePanel != "colorPanel") || (mainPanel.y > -5 && activePanel === "colorPanel")
++            enabled: (menuPanel.y < -5 && activePanel != "colorPanel") || (menuPanel.y > -5 && activePanel === "colorPanel")
+             onClicked: {
+                 animTarget = colorsTitle
+                 menuGrid.visible = false
+                 colorGrid.visible = true
+                 root.activePanel = "colorPanel"
+-                if(mainPanel.panelUnFolded) {
++                if(menuPanel.panelUnFolded) {
+                     foldAnimation.start()
+                 }
+                 else {
+@@ -196,7 +189,6 @@ Item {
+             anchors.fill: parent
+             horizontalAlignment: Text.AlignHCenter
+             verticalAlignment: Text.AlignVCenter
+-            wrapMode: Text.WordWrap
+             fontSizeMode: Text.Fit
+             color: "white"
+         }
+@@ -214,13 +206,13 @@ Item {
+ 
+         MouseArea {
+             anchors.fill: parent
+-            enabled: (mainPanel.y < -5 && activePanel != "toolOptions") || (mainPanel.y > -5 && activePanel === "toolOptions")
++            enabled: (menuPanel.y < -5 && activePanel != "toolOptions") || (menuPanel.y > -5 && activePanel === "toolOptions")
+             onClicked: {
+                 animTarget = toolsOptionTitle
+                 root.activePanel = "toolOptions"
+                 menuGrid.visible = false
+                 colorGrid.visible = false
+-                if(mainPanel.panelUnFolded) {
++                if(menuPanel.panelUnFolded) {
+                     foldAnimation.start()
+                 }
+                 else {
+@@ -234,91 +226,20 @@ Item {
+             text: qsTr("Tool Options")
+             fontSize: tinySize
+             anchors.fill: parent
+-            fontSizeMode: Text.Fit
+             horizontalAlignment: Text.AlignHCenter
+             verticalAlignment: Text.AlignVCenter
+-            wrapMode: Text.WordWrap
++            fontSizeMode: Text.Fit
+             color: "white"
+         }
+     }
+ 
+-    Rectangle {
+-        id: activeConfiguration
+-        width: background.width > background.height ? root.tabWidth * 1.3 : root.tabWidth * 2
+-        height: background.width > background.height ? root.tabHeight * 1.3 : root.tabHeight * 1.2
+-        radius: 10
+-        color: "grey"
+-        border.color: "white"
+-        x: toolsTitle.x + toolsTitle.width + (background.width > background.height ? width / 2 : width / 6)
+-        y: -7
+-        z: mainPanel.z - 1
+-
+-        Image {
+-            id: undo
+-            source: "qrc:/gcompris/src/activities/drawing/resource/undo.svg"
+-            height: background.width > background.height ? parent.height * 0.75 : parent.height * 0.60
+-            width: height
+-            anchors.verticalCenter: parent.verticalCenter
+-            anchors.left: parent.left
+-            anchors.leftMargin: parent.width * 0.10
+-            MouseArea {
+-                anchors.fill: parent
+-                hoverEnabled: true
+-                onEntered: undo.scale = 1.1
+-                onExited: undo.scale = 1
+-                onClicked: Activity.selectTool("Undo")
+-            }
+-        }
+-
+-        Rectangle {
+-            id: activeColor
+-            height: undo.height - 4
+-            width: height
+-            color: items.paintColor
+-            radius: 10
+-            anchors.verticalCenter: parent.verticalCenter
+-            anchors.left: undo.right
+-            anchors.leftMargin: 10
+-            border.width: 2
+-            border.color: "white"
+-        }
+-
+-        Image {
+-            id: activeTool
+-            source: activeToolIconSource
+-            height: undo.height
+-            width: height
+-            fillMode: Image.PreserveAspectFit
+-            anchors.left: activeColor.right
+-            anchors.leftMargin: 10
+-            anchors.verticalCenter: parent.verticalCenter
+-        }
+-
+-        Image {
+-            id: redo
+-            source: "qrc:/gcompris/src/activities/drawing/resource/redo.svg"
+-            height: undo.height
+-            width: height
+-            anchors.verticalCenter: parent.verticalCenter
+-            anchors.left: activeTool.right
+-            anchors.leftMargin: 10
+-            MouseArea {
+-                anchors.fill: parent
+-                hoverEnabled: true
+-                onEntered: redo.scale = 1.1
+-                onExited: redo.scale = 1
+-                onClicked: Activity.selectTool("Redo")
+-            }
+-        }
+-    }
+-
+     property var animTarget: menuTitle
+ 
+     NumberAnimation {
+         id: unfoldTitle
+         target: animTarget
+         property: "y"
+-        to: mainPanel.height - 7
++        to: menuPanel.height - 7
+         duration: 200
+         easing.type: Easing.InOutQuad
+     }
+@@ -334,7 +255,7 @@ Item {
+     }
+ 
+     Rectangle {
+-        id: mainPanel
++        id: menuPanel
+         anchors.leftMargin: 5
+         width: background.width
+         height: background.height / 2.4
+@@ -345,22 +266,17 @@ Item {
+ 
+         NumberAnimation {
+             id: foldAnimation
+-            target: mainPanel
++            target: menuPanel
+             property: "y"
+-            to: - mainPanel.height
++            to: - menuPanel.height
+             duration: 200
+             easing.type: Easing.InOutQuad
+             onStarted: foldTitle.start()
+         }
+ 
+-        // This mouseArea overrides the canvas region and avoid drawing through panel.
+-        MouseArea {
+-            anchors.fill: parent
+-        }
+-
+         NumberAnimation {
+             id: unfoldAnimation
+-            target: mainPanel
++            target: menuPanel
+             property: "y"
+             to: 0
+             duration: 200
+@@ -373,7 +289,7 @@ Item {
+             width: parent.width * 0.75
+             height: parent.height * 0.80
+             anchors.centerIn: parent
+-            visible: root.activePanel == "mainPanel" || root.activePanel == "toolsPanel"
++            visible: root.activePanel == "menuPanel" || root.activePanel == "toolsPanel"
+             anchors.topMargin: 30
+             cellWidth: width / 4
+             cellHeight: height / 2.2
+@@ -392,7 +308,6 @@ Item {
+                         onExited: parent.scale = 1.0
+                         onClicked: {
+                             console.log(itemName)
+-                            activeToolIconSource = img.source
+                             Activity.selectTool(itemName)
+                             foldAnimation.start()
+                         }
+@@ -400,12 +315,8 @@ Item {
+                 }
+                 GCText {
+                     text: itemName
+-                    width: root.tabWidth
+                     anchors.horizontalCenter: img.horizontalCenter
+-                    horizontalAlignment: Text.AlignHCenter
+-                    verticalAlignment: Text.AlignVCenter
+                     anchors.top: img.bottom
+-                    wrapMode: Text.WordWrap
+                     fontSize: tinySize
+                     color: "white"
+                 }
+@@ -417,13 +328,12 @@ Item {
+             width: parent.width * 0.75
+             height: parent.height * 0.80
+             anchors.left: selectedColor.right
+-            anchors.verticalCenter: mainPanel.verticalCenter
++            anchors.verticalCenter: menuPanel.verticalCenter
+             anchors.leftMargin: 30
+             anchors.rightMargin: 10
+             anchors.topMargin: 10
+             cellWidth: width / 4.7
+             cellHeight: height / 3.6
+-            interactive: false
+             model: colorModel
+             visible: root.activePanel == "colorPanel"
+             z: 1800
+@@ -433,8 +343,9 @@ Item {
+                 width: colorGrid.cellWidth * 0.80
+                 height: colorGrid.cellHeight * 0.90
+                 color: modelData
++                scale: items.activeColorIndex === index ? 1.2 : 1
+                 border.width: 3
+-                border.color: items.activeColorIndex === index ? "grey" : "transparent"
++                border.color: modelData
+                 MouseArea {
+                     anchors.fill: parent
+                     hoverEnabled: true
+@@ -454,13 +365,8 @@ Item {
+ 
+                     // set this color as current paint color
+                     onClicked: {
+-                        var lastActiveIndex = items.activeColorIndex
+-                        var lastActiveColor = items.paintColor
+-                        root.colorModel.remove(lastActiveIndex)
+-                        root.colorModel.insert(lastActiveIndex, {colorCode: lastActiveColor.toString()})
+                         items.activeColorIndex = index
+                         items.paintColor = root1.color
+-                        items.lastActiveColor = items.paintColor
+                         background.hideExpandedTools()
+                         items.paintColor = color
+                         background.reloadSelectedPen()
+@@ -473,16 +379,16 @@ Item {
+ 
+         ColorDialog {
+             id: colorPicker
+-            anchors.left: mainPanel.left
+-            anchors.verticalCenter: mainPanel.verticalCenter
++            anchors.left: menuPanel.left
++            anchors.verticalCenter: menuPanel.verticalCenter
+             visible: colorGrid.visible
+             anchors.leftMargin: 20
+         }
+ 
+         Rectangle {
+             id: selectedColor
+-            width: mainPanel.width * 0.08
+-            height: mainPanel.height * 0.30
++            width: menuPanel.width * 0.08
++            height: menuPanel.height * 0.30
+             visible: colorGrid.visible
+             radius: 8
+             border.width: 3
+@@ -514,7 +420,6 @@ Item {
+                 root.colorModel.remove(items.activeColorIndex)
+                 root.colorModel.insert(items.activeColorIndex, {colorCode: (colorPicker.currentColor()).toString()})
+                 items.paintColor = (colorPicker.currentColor()).toString()
+-                foldAnimation.start()
+             }
+         }
+ 
+diff --git a/src/activities/drawing/SaveToFilePrompt.qml b/src/activities/drawing/SaveToFilePrompt.qml
+index 08d1c7c..6286a38 100644
+--- a/src/activities/drawing/SaveToFilePrompt.qml
++++ b/src/activities/drawing/SaveToFilePrompt.qml
+@@ -186,7 +186,6 @@ Rectangle {
+     function noPressed() {
+         if(buttonPressed === "reload") {
+             cancelPressed()
+-            Activity.reloadCanvas = true
+             Activity.initLevel()
+         }
+         else if(buttonPressed === "home") {
+diff --git a/src/activities/drawing/TextInputTool.qml b/src/activities/drawing/TextInputTool.qml
+index 9e6608d..c2ada18 100644
+--- a/src/activities/drawing/TextInputTool.qml
++++ b/src/activities/drawing/TextInputTool.qml
+@@ -24,30 +24,21 @@ import "../../core"
+ 
+ Rectangle {
+     id: inputTextFrame
+-    property bool horizontalMode: background.width > background.height
+-    color: "#add8e6"
+-    width: horizontalMode ? background.width * 0.40 : background.width * 0.60
+-    height: horizontalMode ? background.height * 0.40 : background.height * 0.30
++    color: background.color
++    width: inputText.width + okButton.width + inputText.height + 10
++    height: inputText.height * 1.1
+     anchors.centerIn: parent
+-    radius: 10
++    radius: height / 2
+     z: 1000
+     opacity: 0
+-
+     property alias inputText: inputText
+-    property string fontSize: "8px "
+-    property string isBold: boldText.checked ? "bold " : ""
+-    property string isItalic: italicText.checked ? "italic " : ""
+-    property string fontFamily: ApplicationSettings.font + ", serif"
+-    property string font: isBold + isItalic + fontSize + fontFamily
+-
+     TextField {
+         id: inputText
+         anchors.left: parent.left
+-        anchors.leftMargin: 20
+-        anchors.top: parent.top
+-        anchors.topMargin: 20
++        anchors.leftMargin: height / 1.9
++        anchors.verticalCenter: parent.verticalCenter
+         height: 50
+-        width: parent.width * 0.70
++        width: 300
+         placeholderText: qsTr("Type here")
+         font.pointSize: 32
+     }
+@@ -56,7 +47,7 @@ Rectangle {
+     Image {
+         id: okButton
+         source:"qrc:/gcompris/src/core/resource/bar_ok.svg"
+-        sourceSize.height: inputText.height * 1.3
++        sourceSize.height: inputText.height
+         fillMode: Image.PreserveAspectFit
+         anchors.left: inputText.right
+         anchors.leftMargin: 10
+@@ -80,89 +71,8 @@ Rectangle {
+                 onBoardText.y = area.realMouseY - onBoardText.height * 0.8
+ 
+                 // start the movement
+-                moveOnBoard.start()
++                moveOnBoardText.start()
+             }
+         }
+     }
+-
+-    //bold text option
+-    GCDialogCheckBox {
+-        id: boldText
+-        anchors.top: inputText.bottom
+-        anchors.left: inputText.left
+-        anchors.topMargin: 10
+-        labelTextFontSize: horizontalMode ? 16 : 10
+-        indicatorImageHeight: horizontalMode ? 40 * ApplicationInfo.ratio : 20 * ApplicationInfo.ratio
+-        width: indicatorImageHeight
+-        onCheckedChanged: {
+-            canvas.updateDemoText()
+-            onBoardText.font.bold = checked
+-        }
+-        text: qsTr("Bold")
+-    }
+-
+-    // Italic text option
+-    GCDialogCheckBox {
+-        id: italicText
+-        anchors.top: boldText.bottom
+-        anchors.topMargin: 10
+-        anchors.left: inputText.left
+-        labelTextFontSize: boldText.labelTextFontSize
+-        indicatorImageHeight: boldText.indicatorImageHeight
+-        width: indicatorImageHeight
+-        onCheckedChanged: {
+-            canvas.updateDemoText()
+-            onBoardText.font.italic = checked
+-        }
+-        text: qsTr("Italic")
+-    }
+-
+-    // Font-size slider
+-    GCSlider {
+-        id: fontSizeSlider
+-        width: parent.width * 0.60
+-        anchors.top: italicText.bottom
+-        anchors.topMargin: 10
+-        anchors.left: inputText.left
+-
+-        //Initial font size
+-        value: 16
+-
+-        //Minimum font size allowed
+-        minimumValue: 8
+-
+-        //Maximum font size allowed
+-        maximumValue: 60
+-
+-        onValueChanged: {
+-            fontSize = value.toString() + "px "
+-            canvas.updateDemoText()
+-            onBoardText.font.pointSize = value
+-        }
+-        stepSize: 8
+-    }
+-
+-    // Text settings visualization
+-    Canvas {
+-        id: canvas
+-        width: horizontalMode ?  parent.width * 0.20 : parent.width * 0.30
+-        height: parent.height * 0.30
+-        anchors.horizontalCenter: okButton.horizontalCenter
+-        anchors.top: okButton.bottom
+-        anchors.topMargin: 20
+-        anchors.right: parent.right
+-        anchors.rightMargin: 10
+-        onPaint: updateDemoText()
+-        function updateDemoText() {
+-            var ctx = canvas.getContext("2d")
+-            ctx.fillStyle = "white"
+-            ctx.fillRect(0, 0, width, height)
+-            ctx.font = inputTextFrame.font
+-            ctx.fillStyle = items.paintColor
+-            var demoTextX = width/2 - fontSizeSlider.value/2
+-            var demoTextY = horizontalMode ? height - fontSizeSlider.value/2 : height - fontSizeSlider.value/3
+-            ctx.fillText("Aa", demoTextX, demoTextY)
+-            canvas.requestPaint()
+-        }
+-    }
+ }
+diff --git a/src/activities/drawing/Thickness.qml b/src/activities/drawing/Thickness.qml
+index 16f8dd3..d924a88 100644
+--- a/src/activities/drawing/Thickness.qml
++++ b/src/activities/drawing/Thickness.qml
+@@ -1,7 +1,6 @@
+ /* GCompris - Thickness.qml
+  *
+  * Copyright (C) 2016 Toncu Stefan <stefan.toncu29@gmail.com>
+- *               2018 Amit Sagtani <asagtani06@gmail.com>
+  *
+  *   This program is free software; you can redistribute it and/or modify
+  *   it under the terms of the GNU General Public License as published by
+@@ -21,13 +20,10 @@ import QtQuick 2.6
+ 
+ Rectangle {
+     id: frame
+-
+-    property bool horizontalScreen: background.width > background.height
+-
+     color: items.sizeS == Math.floor(lineSize * 15) ? "#ffff66" : "#ffffb3"
+-    width: horizontalScreen ? 40 : 20
+-    height: width
+-    radius: horizontalScreen ? 8 : 4
++    width: 40
++    height: 40
++    radius: 8
+     border.color: "#cccc00"
+     border.width: 2
+     opacity: items.sizeS == Math.floor(lineSize * 15) ? 1 : 0.7
+@@ -39,9 +35,9 @@ Rectangle {
+     Rectangle {
+         id: thickness
+         color: items.paintColor
+-        radius: horizontalScreen ? 30 : 10
+-        width: horizontalScreen ? lineSize * 25 : lineSize * 10
+-        height: width
++        radius: 30
++        width: lineSize * 25
++        height: lineSize * 25
+         anchors.centerIn: parent
+     }
+ 
+diff --git a/src/activities/drawing/ToolsMode.qml b/src/activities/drawing/ToolsMode.qml
+index d9cd1af..7c7f3ae 100644
+--- a/src/activities/drawing/ToolsMode.qml
++++ b/src/activities/drawing/ToolsMode.qml
+@@ -30,13 +30,6 @@ Item {
+     property alias modesModel: modes.model
+     property alias pencilModes: pencilModes
+     property alias geometricModes: geometricModes
+-    property alias stampsModel: stampsModel
+-    property alias opacitySliderValue: opacitySlider.value
+-    property string activeStampImageSource: "qrc:/gcompris/src/activities/solar_system/resource/sun_clip.svg"
+-    property real activeStampDimensionRatio: 1.0
+-    property real activeStampHeight: 180.0
+-    property real activeStampWidth: activeStampHeight //* activeStampDimensionRatio
+-
+ 
+     ListModel {
+         id: pencilModes
+@@ -72,34 +65,12 @@ Item {
+             imgSource: "qrc:/gcompris/src/activities/drawing/resource/line_free.png" }
+     }
+ 
+-    ListModel {
+-        id: stampsModel
+-        ListElement { imgSource: "qrc:/gcompris/src/activities/solar_system/resource/sun_clip.svg" }
+-        ListElement { imgSource: "qrc:/gcompris/src/activities/solar_system/resource/sun_real.svg" }
+-        ListElement { imgSource: "qrc:/gcompris/src/activities/solar_system/resource/mercury_clip.svg" }
+-        ListElement { imgSource: "qrc:/gcompris/src/activities/solar_system/resource/mercury_real.svg" }
+-        ListElement { imgSource: "qrc:/gcompris/src/activities/solar_system/resource/venus_clip.svg" }
+-        ListElement { imgSource: "qrc:/gcompris/src/activities/solar_system/resource/venus_real.svg" }
+-        ListElement { imgSource: "qrc:/gcompris/src/activities/solar_system/resource/earth_clip.svg" }
+-        ListElement { imgSource: "qrc:/gcompris/src/activities/solar_system/resource/earth_real.svg" }
+-        ListElement { imgSource: "qrc:/gcompris/src/activities/solar_system/resource/mars_clip.svg" }
+-        ListElement { imgSource: "qrc:/gcompris/src/activities/solar_system/resource/mars_real.svg" }
+-        ListElement { imgSource: "qrc:/gcompris/src/activities/solar_system/resource/jupiter_clip.svg" }
+-        ListElement { imgSource: "qrc:/gcompris/src/activities/solar_system/resource/jupiter_real.svg" }
+-        ListElement { imgSource: "qrc:/gcompris/src/activities/solar_system/resource/saturn_clip.svg" }
+-        ListElement { imgSource: "qrc:/gcompris/src/activities/solar_system/resource/saturn_real.png" }
+-        ListElement { imgSource: "qrc:/gcompris/src/activities/solar_system/resource/uranus_clip.svg"}
+-        ListElement { imgSource: "qrc:/gcompris/src/activities/solar_system/resource/uranus_real.svg" }
+-        ListElement { imgSource: "qrc:/gcompris/src/activities/solar_system/resource/neptune_clip.svg" }
+-        ListElement { imgSource: "qrc:/gcompris/src/activities/solar_system/resource/neptune_real.svg" }
+-    }
+-
+     GridView {
+         id: modes
+-        width: foldablePanels.mainPanel.width * 0.50
+-        height: foldablePanels.mainPanel.height * 0.90
+-        cellWidth: width / 4
+-        cellHeight: height / 4
++        width: parent.width * 0.50
++        height: parent.height * 0.85
++        cellWidth: width / 4.2
++        cellHeight: height / 3.2
+         anchors.verticalCenter: parent.verticalCenter
+         anchors.left: parent.left
+         anchors.leftMargin: 40
+@@ -112,7 +83,7 @@ Item {
+         Rectangle {
+             width: modes.cellWidth
+             height: modes.cellHeight
+-            color: (modes.model !== stampsModel && items.toolSelected == name) ? "lightblue" : "transparent"
++            color: items.toolSelected == name ? "lightblue" : "transparent"
+             radius: 10
+             Image {
+                 source: imgSource
+@@ -124,60 +95,27 @@ Item {
+             MouseArea {
+                 anchors.fill: parent
+                 onClicked: {
+-                    if(modes.model !== stampsModel) {
+-                        items.toolSelected = name
+-                        items.lastToolSelected = name
+-                        background.hideExpandedTools()
+-                        console.log("Click on " + name)
++                    items.toolSelected = name
++                    items.lastToolSelected = name
++                    background.hideExpandedTools()
++                    console.log("Click on " + name)
++
++                    // make the hover over the canvas false
++                    area.hoverEnabled = false
+ 
+-                        // change the selectBrush tool
+-                        timer.index = 0
+-                        timer.start()
+-                        background.reloadSelectedPen()
+-                        Activity.selectMode(name)
+-                    }
+-                    else if(modes.model === stampsModel) {
+-                        activeStampImageSource = imgSource
+-                        foldablePanels.foldAnimation.start()
+-                    }
++                    // change the selectBrush tool
++                    timer.index = 0
++                    timer.start()
++                    background.reloadSelectedPen()
++                    Activity.selectMode(name)
+                 }
+             }
+         }
+     }
+ 
+     ToolsSize {
+-        id: toolsTipSize
+         anchors.left: modes.right
+-        anchors.top: parent.top
+-        anchors.topMargin: items.toolSelected === "stamp" ? 100 : 30
++        anchors.verticalCenter: parent.verticalCenter
+         anchors.leftMargin: 30
+     }
+-
+-    GCSlider {
+-        id: opacitySlider
+-        width: toolsTipSize.width
+-        anchors.top: toolsTipSize.bottom
+-        anchors.horizontalCenter: toolsTipSize.horizontalCenter
+-        anchors.topMargin: 30
+-        value: 1.0
+-        minimumValue: 0.0
+-        maximumValue: 1.0
+-        stepSize: 0.1
+-        onValueChanged: {
+-            items.globalOpacityValue = value
+-            items.canvas.getContext('2d').globalAlpha = value
+-        }
+-    }
+-
+-    GCText {
+-        width: background.width > background.height ? opacitySlider.width / 3 : opacitySlider.width / 2
+-        anchors.horizontalCenter: opacitySlider.horizontalCenter
+-        horizontalAlignment: Text.AlignHCenter
+-        verticalAlignment: Text.AlignVCenter
+-        anchors.top: opacitySlider.bottom
+-        anchors.topMargin: 10
+-        fontSize: tinySize
+-        color: "white"
+-        text: "Opacity"
+-    }
+ }
+diff --git a/src/activities/drawing/ToolsSize.qml b/src/activities/drawing/ToolsSize.qml
+index 87111f0..3160eca 100644
+--- a/src/activities/drawing/ToolsSize.qml
++++ b/src/activities/drawing/ToolsSize.qml
+@@ -25,58 +25,18 @@ import "drawing.js" as Activity
+ 
+ Item {
+     id: toolsSize
+-    width: items.foldablePanels.mainPanel.width * 0.30
+-    height: items.foldablePanels.mainPanel.height * 0.35
+-
+-    Button {
+-        style: GCButtonStyle { theme: "light" }
+-        text: qsTr("Import an image")
+-        width: parent.width
+-        anchors.bottom: stampSizeslider.top
+-        anchors.bottomMargin: background.width > background.height ? 50 : 30
+-        visible: items.toolSelected === "stamp"
+-        onClicked: {
+-            items.fileDialog.open()
+-            console.log("Opened file Dialog")
+-        }
+-    }
+-
+-    GCSlider {
+-        id: stampSizeslider
+-        width: parent.width
+-        anchors.centerIn: parent
+-        anchors.topMargin: 50
+-        value: 180
+-        minimumValue: 1
+-        maximumValue: canvas.height
+-        onValueChanged: items.toolsMode.activeStampHeight = value
+-        stepSize: 80
+-        visible: items.toolSelected === "stamp"
+-    }
++    width: background.width > background.height ? background.width * 0.30 : background.width * 0.30
++    height: background.height * 0.35
+ 
+     GCSlider {
+         id: slider
+-        width: parent.width
+         anchors.centerIn: parent
++        //anchors.verticalCenterOffset: 30
+         value: items.sizeS
+         minimumValue: 2
+         maximumValue: 24
+         onValueChanged: items.sizeS = value
+         stepSize: 2
+-        visible: items.toolSelected !== "stamp"
+-    }
+-
+-    GCText {
+-        width: background.width > background.height ? opacitySlider.width / 3 : opacitySlider.width / 2
+-        anchors.horizontalCenter: slider.horizontalCenter
+-        horizontalAlignment: Text.AlignHCenter
+-        verticalAlignment: Text.AlignVCenter
+-        anchors.top: slider.bottom
+-        anchors.topMargin: 10
+-        fontSize: tinySize
+-        color: "white"
+-        text: "Size"
+-        visible: items.toolSelected === "stamp"
+     }
+ 
+     Row {
+@@ -84,7 +44,6 @@ Item {
+         spacing: slider.width / 4.6
+         x: slider.x
+         anchors.bottom: slider.top
+-        visible: items.toolSelected !== "stamp"
+ 
+         Thickness { lineSize: 0.13 }
+         Thickness { lineSize: 0.66 }
+diff --git a/src/activities/drawing/drawing.js b/src/activities/drawing/drawing.js
+index 312b2b4..af22e82 100644
+--- a/src/activities/drawing/drawing.js
++++ b/src/activities/drawing/drawing.js
+@@ -51,7 +51,6 @@ var ctx
+ 
+ var points = []
+ var connectedPoints = []
+-var reloadCanvas = false
+ 
+ function start(items_) {
+     items = items_
+@@ -73,23 +72,17 @@ function initLevel() {
+     redo = []
+ 
+     ctx = items.canvas.getContext("2d")
+-    items.globalOpacityValue = 1
+-    ctx.fillStyle = items.backgroundColor
+-    if(reloadCanvas) {
+-        console.log("Clearing canvas!")
+-        ctx.clearRect(0, 0, items.background.width, items.background.height)
+-        //        ctx.beginPath()
+-        //        ctx.clearRect(0, 0, items.background.width, items.background.height)
+-        //        ctx.moveTo(0, 0)
+-        //        ctx.lineTo(items.background.width, 0)
+-        //        ctx.lineTo(items.background.width, items.background.height)
+-        //        ctx.lineTo(0, items.background.height)
+-        //        ctx.closePath()
+-        //        ctx.fill()
+-        reloadCanvas = false
+-    }
+-    ctx.globalAlpha = items.globalOpacityValue
+-    items.foldablePanels.toolsMode.opacitySliderValue = items.globalOpacityValue
++    ctx.fillStyle = "#ffffff"
++
++    ctx.beginPath()
++    ctx.clearRect(0, 0, items.background.width, items.background.height)
++
++    ctx.moveTo(0, 0)
++    ctx.lineTo(items.background.width, 0)
++    ctx.lineTo(items.background.width, items.background.height)
++    ctx.lineTo(0, items.background.height)
++    ctx.closePath()
++    ctx.fill()
+     items.canvas.requestPaint()
+ 
+     items.next = false
+@@ -280,14 +273,7 @@ function previousLevel() {
+ 
+ function selectTool(toolName) {
+     console.log("Clicked on " + toolName)
+-    items.paintColor = items.lastActiveColor
+-    items.eraserMode = false
+-    items.timer.stop()
+     if(toolName === "Eraser") {
+-        items.eraserMode = true
+-        items.paintColor = Qt.rgba(0, 0, 0, 1)
+-        items.globalOpacityValue = 1
+-        items.foldablePanels.toolsMode.opacitySliderValue = items.globalOpacityValue
+         items.toolSelected = "eraser"
+         items.background.hideExpandedTools()
+         items.background.reloadSelectedPen()
+@@ -296,6 +282,9 @@ function selectTool(toolName) {
+         items.toolSelected = "fill"
+         items.background.hideExpandedTools()
+ 
++        // make the hover over the canvas false
++        items.area.hoverEnabled = false
++
+         // change the selectBrush tool
+         items.timer.index = 0
+         items.timer.start()
+@@ -307,6 +296,9 @@ function selectTool(toolName) {
+         items.background.hideExpandedTools()
+         items.background.reloadSelectedPen()
+ 
++        // enable the text to follow the cursor movement
++        items.area.hoverEnabled = true
++
+         // make visible the inputTextFrame
+         items.inputTextFrame.opacity = 1
+         items.inputTextFrame.z = 1000
+@@ -400,18 +392,7 @@ function selectTool(toolName) {
+         items.background.reloadSelectedPen()
+         items.toolsMode.modesModel = items.toolsMode.geometricModes
+     }
+-    else if(toolName === "Stamp") {
+-        items.toolSelected = "stamp"
+-        items.lastToolSelected = "stamp"
+-        items.toolsMode.modesModel = items.toolsMode.stampsModel
+-        items.stampGhostImage.opacity = 0.5
+-        items.stampGhostImage.z = 1500
+-        items.stampGhostImage.x = items.area.realMouseX
+-        items.stampGhostImage.y = items.area.realMouseY
+-        // enable the image to follow the cursor movement
+-    }
+-
+-    else if(toolName === "Brush") {
++    else if(toolName === "Pencil") {
+         items.toolSelected = "pencil"
+         items.lastToolSelected = "pencil"
+         items.background.hideExpandedTools()
+@@ -421,9 +402,6 @@ function selectTool(toolName) {
+     else if(toolName === "Export to PNG") {
+         exportToPng()
+     }
+-    else if(toolName === "Background color") {
+-        items.backgroundColorPalette.visible = true
+-    }
+ }
+ 
+ function selectMode(modeName) {
+@@ -449,105 +427,3 @@ function selectMode(modeName) {
+         items.background.reloadSelectedPen()
+     }
+ }
+-
+-// Paint flood-fill algorithm(Stack based Implementation)
+-function paintBucket() {
+-    console.log( "Flood fill started at " + new Date().toLocaleTimeString() )
+-    items.canvas.isBucketDone = false;
+-    var reachLeft = false;
+-    var reachRight = false;
+-    var sX = parseInt(items.canvas.startX, 10)
+-    var sY = parseInt(items.canvas.startY, 10)
+-    var pixelStack = [[items.canvas.startX, items.canvas.startY]]
+-    var ctx = items.canvas.getContext('2d')
+-
+-    var colorLayer = ctx.getImageData(0, 0,items.canvas.width, items.canvas.height)
+-    var begPixel = sX * 4 + sY * 4 * colorLayer.width
+-    var r1 = colorLayer.data[begPixel]
+-    var g1 = colorLayer.data[begPixel + 1]
+-    var b1 = colorLayer.data[begPixel + 2]
+-
+-    if(r1 === (items.canvas.fillColor.r * 255) && g1 === (items.canvas.fillColor.g * 255) && b1 === (items.canvas.fillColor.b * 255)) {
+-        items.canvas.isBucketDone = true;
+-        return;
+-    }
+-
+-    var  r2, b2, g2, newIndex, oPixel
+-
+-    while(pixelStack.length) {
+-        var pixelToCheck = pixelStack.pop()
+-        sY = pixelToCheck[1]
+-        sX = pixelToCheck[0]
+-        begPixel = sX * 4 + sY * 4 * colorLayer.width
+-
+-        reachLeft = false;
+-        reachRight = false;
+-
+-        while(sY - 1 >= 0) {
+-            begPixel = sX * 4 + sY * 4 * colorLayer.width
+-
+-            if (!((colorLayer.data[begPixel] === r1) && (colorLayer.data[begPixel + 1] === g1) && (colorLayer.data[begPixel + 2] === b1))) {
+-                break;
+-            }
+-            sY = sY - 1
+-        }
+-
+-        sY = sY + 1;
+-        ctx.fillRect(sX, sY, 1, 1)
+-        begPixel = sX * 4 + sY * 4 * colorLayer.width
+-        colorLayer.data[begPixel] = items.canvas.fillColor.r * 255
+-        colorLayer.data[begPixel + 1] = items.canvas.fillColor.g * 255
+-        colorLayer.data[begPixel + 2] = items.canvas.fillColor.b * 255
+-        colorLayer.data[begPixel + 3] = 255
+-
+-        while(sY + 1 < colorLayer.height) {
+-            sY = sY + 1
+-            begPixel = sX * 4 + sY * 4 * colorLayer.width
+-            if(((colorLayer.data[begPixel ] === r1) && (colorLayer.data[begPixel + 1] === g1) && (colorLayer.data[ begPixel + 2 ] === b1))) {
+-                ctx.fillRect(sX, sY, 2, 2)
+-                colorLayer.data[begPixel] = items.canvas.fillColor.r * 255
+-                colorLayer.data[begPixel + 1] = items.canvas.fillColor.g * 255
+-                colorLayer.data[begPixel + 2] = items.canvas.fillColor.b * 255
+-                colorLayer.data[begPixel + 3] = 255
+-
+-                if(sX > 1) {
+-                    oPixel = (sX - 1) * 4 + sY * 4 * colorLayer.width
+-                    if((colorLayer.data[oPixel] === r1) && (colorLayer.data[oPixel + 1] === g1) && (colorLayer.data[oPixel + 2] === b1)) {
+-                        if(!reachLeft) {
+-                            pixelStack.push([sX -1, sY])
+-                            reachLeft = true;
+-                        }
+-                    }
+-                    else {
+-                        reachLeft = false;
+-                    }
+-                }
+-
+-                if(sX < items.canvas.width) {
+-                    oPixel = (sX + 1) * 4 + sY * 4 * colorLayer.width
+-                    if((colorLayer.data[oPixel ] === r1) && (colorLayer.data[oPixel + 1] === g1) && (colorLayer.data[ oPixel + 2 ] === b1)) {
+-                        if (!reachRight) {
+-                            pixelStack.push([sX + 1, sY])
+-                            reachRight = true;
+-                        }
+-                    }
+-                    else {
+-                        reachRight = false;
+-                    }
+-                }
+-            }
+-            else {
+-                break;
+-            }
+-        }
+-    }
+-
+-    ctx.drawImage(colorLayer, 0, 0)
+-    items.canvas.requestPaint()
+-    items.canvas.startX = -1
+-    items.canvas.startY = -1
+-    items.canvas.finishX = -1
+-    items.canvas.finishY = -1
+-
+-    console.log( "Flood-fill completed at " + new Date().toLocaleTimeString() )
+-}
