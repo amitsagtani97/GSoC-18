@@ -1,0 +1,640 @@
+diff --git a/src/activities/drawing/ActivityInfo.qml b/src/activities/drawing/ActivityInfo.qml
+index 783ff4b..95680b7 100644
+--- a/src/activities/drawing/ActivityInfo.qml
++++ b/src/activities/drawing/ActivityInfo.qml
+@@ -24,12 +24,18 @@ ActivityInfo {
+   icon: "drawing/drawing.svg"
+   author: "Stefan Toncu &lt;stefan.toncu29@gmail.com&gt;"
+   demo: true
+-  title: "Drawing"
+-  description: ""
+-  //intro: "put here in comment the text for the intro voice"
+-  goal: ""
++  title: qsTr("Drawing")
++  description: qsTr("Use the various drawing tools to create beautiful arts.")
++  //intro: "Use various graphical tools to draw beautiful arts."
++  goal: qsTr("Learn about basic drawing tools.")
+   prerequisite: ""
+-  manual: ""
++  manual: qsTr("Select tools from the foldable panels to draw beautiful arts.<br><br>") +
++          qsTr("<b>Keyboard Controls:</b><br>") +
++          qsTr("1. Use Ctrl + Z to undo last changes.<br>") +
++          qsTr("2. Use Ctrl + Y to redo last changes.<br>") +
++          qsTr("3. Use Ctrl + N to erase the drawing.<br>") +
++          qsTr("4. Use Ctrl + S to save the drawing.<br>") +
++          qsTr("5. Use Ctrl + O to load the saved drawings.<br>")
+   credit: ""
+   section: "fun"
+   createdInVersion: 9500
+diff --git a/src/activities/drawing/ColorDialog.qml b/src/activities/drawing/ColorDialog.qml
+index ce24c9e..83acb81 100644
+--- a/src/activities/drawing/ColorDialog.qml
++++ b/src/activities/drawing/ColorDialog.qml
+@@ -74,11 +74,15 @@ Rectangle {
+         }
+ 
+         picker.hue = (1 / 6) * h
++        if(picker.hue < 0) {
++            picker.hue = 1 + picker.hue
++        }
++
+         console.log(picker.hue)
+         picker.saturation = (c / (1 - Math.abs(2 * ((max + min) / 2) - 1)))
+         picker.lightness = (max + min) / 2
+         sMarker.y = saturation * barHeight
+-        hsMarker.y = picker.hue >= 0 ? hue * barHeight : (1 + hue) * barHeight
++        hsMarker.y = hue * barHeight
+         lsMarker.y = (1 - lightness) * barHeight
+ 
+         return true;
+diff --git a/src/activities/drawing/Drawing.qml b/src/activities/drawing/Drawing.qml
+index 6f220b8..d3bf1ee 100644
+--- a/src/activities/drawing/Drawing.qml
++++ b/src/activities/drawing/Drawing.qml
+@@ -24,7 +24,6 @@ import "../../core"
+ import "drawing.js" as Activity
+ import "qrc:/gcompris/src/core/core.js" as Core
+ 
+-// TODO1: undo/redo
+ // TODO: (optional): Shape creator: press on the canvas to draw lines; at the end, press on the starting point to create a shape
+ 
+ ActivityBase {
+@@ -119,12 +118,11 @@ ActivityBase {
+             property alias saveToFilePrompt: saveToFilePrompt
+             property alias stampGhostImage: stampGhostImage
+             property alias onBoardText: onBoardText
++            property alias fileDialog: fileDialog
+             property color paintColor: "#000000"
+             property color lastActiveColor: "#000000"
+             property color backgroundColor: "#ffffff"
+             property string urlImage
+-            property bool next: false
+-            property bool next2: false
+             property bool loadSavedImage: false
+             property bool initSave: false
+             property bool nothingChanged: true
+@@ -148,6 +146,7 @@ ActivityBase {
+ 
+         onStart: { Activity.start(items) }
+         onStop: { Activity.stop() }
++        Keys.onPressed: Activity.handleKeyNavigations(event)
+ 
+         DialogHelp {
+             id: dialogHelp
+@@ -271,12 +270,13 @@ ActivityBase {
+                 Image {
+                     id: stampGhostImage
+                     source: items.toolsMode.activeStampImageSource
+-                    //width: items.toolsMode.activeStampWidth
+-                    //height: items.toolsMode.activeStampHeight
++                    width: items.toolsMode.activeStampWidth
++                    height: items.toolsMode.activeStampHeight
+                     fillMode: Image.PreserveAspectFit
+                     z: -1
+                     opacity: 0.5
+                     visible: items.toolSelected === "stamp"
++                    onSourceChanged: items.toolsMode.activeStampDimensionRatio = sourceSize.width / sourceSize.height
+                 }
+ 
+                 function clearCanvas() {
+@@ -303,9 +303,10 @@ ActivityBase {
+ 
+                 onImageLoaded: {
+                     // load images from files
+-                    if (canvas.url != "") {
++                    if (items.urlImage != "") {
+                         //canvas.clearCanvas()
+-                        canvas.ctx.drawImage(canvas.url, 0, 0, canvas.width, canvas.height)
++                        canvas.ctx.clearRect(0, 0, items.background.width, items.background.height)
++                        canvas.ctx.drawImage(items.urlImage, 0, 0, canvas.width, canvas.height)
+                         //                        if (items.loadSavedImage) {
+                         //                            canvas.ctx.drawImage(canvas.url, 0, 0, canvas.width, canvas.height)
+                         //                        } else {
+@@ -315,19 +316,19 @@ ActivityBase {
+                         // mark the loadSavedImage as finished
+                         items.loadSavedImage = false
+                         requestPaint()
+-                        items.lastUrl = canvas.url
+-                        unloadImage(canvas.url)
++                        items.lastUrl = items.urlImage//canvas.url
++                        //unloadImage(items.urlImage)
+                         items.mainAnimationOnX = true
+-                        canvas.url = ""
++                        items.urlImage = ""
+ 
+                         // undo and redo
+-                    } else if (items.undoRedo) {
++                    } /*else if (items.undoRedo) {
+                         ctx.drawImage(items.urlImage,0,0)
+                         requestPaint()
+                         items.lastUrl = canvas.url
+-                        unloadImage(items.urlImage)
++                        //unloadImage(items.urlImage)
+                         items.undoRedo = false
+-                    }
++                    }*/
+                 }
+ 
+                 function resetShape () {
+@@ -403,6 +404,10 @@ ActivityBase {
+                     property real realMouseY: mouseY
+ 
+                     onPressed: {
++                        if(items.foldablePanels.activePanel != "null") {
++                            items.foldablePanels.foldAnimation.start()
++                            items.foldablePanels.activePanel = "null"
++                        }
+ 
+                         if (items.nothingChanged)
+                             items.nothingChanged = false
+@@ -534,13 +539,14 @@ ActivityBase {
+                             canvas.requestPaint()
+                         }
+ 
+-                        if (items.toolSelected == "text" && onBoardText.text != "") {
++                        if (items.toolSelected == "text") {
+                             canvas.removeShadow()
+                             canvas.ctx.fillStyle = items.paintColor
+                             canvas.ctx.font = inputTextFrame.font
+                             console.log(inputTextFrame.font)
+                             canvas.ctx.fillText(onBoardText.text,area.realMouseX,area.realMouseY)
+                             onBoardText.text = ""
++                            Activity.selectTool("Brush")
+ 
+                             canvas.requestPaint()
+                         }
+@@ -563,15 +569,7 @@ ActivityBase {
+                             print("resetting redo array!")
+                             Activity.redo = []
+                         }
+-
+-                        if (items.toolSelected != "circle" &&
+-                                items.toolSelected != "rectangle" &&
+-                                items.toolSelected != "line" &&
+-                                items.toolSelected != "lineShift")
+-                            items.next = true
+-                        else items.next = false
+-
+-                        // print("undo: " + Activity.undo.length + " redo: " + Activity.redo.length)
++                        Activity.redoMode = false
+                     }
+ 
+                     onPositionChanged: {
+@@ -860,10 +858,10 @@ ActivityBase {
+                         }
+ 
+                         if(items.toolSelected === "stamp") {
++                            canvas.ctx.drawImage(items.toolsMode.activeStampImageSource, stampGhostImage.x, stampGhostImage.y,
++                                                 stampGhostImage.width, stampGhostImage.height)
+                             canvas.requestPaint()
+-                            canvas.ctx.drawImage(items.toolsMode.activeStampImageSource, stampGhostImage.x, stampGhostImage.y)
+-
+-                            stampGhostImage.z = -1
++                            activity.audioEffects.play('qrc:/gcompris/src/core/resource/sounds/smudge.wav')
+                         }
+                     }
+                 }
+@@ -916,5 +914,16 @@ ActivityBase {
+             id: backgroundColorPalette
+             visible: false
+         }
++
++        FileDialog {
++            id: fileDialog
++            title: qsTr("Choose an image")
++            selectMultiple: false
++            nameFilters: [ qsTr("Image files (*.jpg *.png *.svg)")]
++            onAccepted: {
++                items.toolsMode.activeStampImageSource = fileDialog.fileUrl
++                console.log("You choose " + fileDialog.fileUrl)
++            }
++        }
+     }
+ }
+diff --git a/src/activities/drawing/FoldablePanels.qml b/src/activities/drawing/FoldablePanels.qml
+index d0de200..53b240c 100644
+--- a/src/activities/drawing/FoldablePanels.qml
++++ b/src/activities/drawing/FoldablePanels.qml
+@@ -244,37 +244,78 @@ Item {
+ 
+     Rectangle {
+         id: activeConfiguration
+-        width: root.tabWidth
+-        height: root.tabHeight
++        width: background.width > background.height ? root.tabWidth * 1.3 : root.tabWidth * 2
++        height: root.tabHeight * 1.2
+         radius: 10
+         color: "grey"
+         border.color: "white"
+-        x: (colorsTitle.x + toolsTitle.x) / 2
++        x: toolsTitle.x + toolsTitle.width + (background.width > background.height ? width / 2 : width / 6)
+         y: -7
+         z: mainPanel.z - 1
++        MouseArea {
++            anchors.fill: parent
++        }
++
++        Image {
++            id: undo
++            source: "qrc:/gcompris/src/activities/drawing/resource/undo.svg"
++            height: background.width > background.height ? parent.height * 0.75 : parent.height * 0.60
++            width: activeConfiguration.width / 5.2
++            anchors.verticalCenter: parent.verticalCenter
++            anchors.left: parent.left
++            anchors.leftMargin: parent.width * 0.10
++            MouseArea {
++                anchors.fill: parent
++                hoverEnabled: true
++                onEntered: undo.scale = 1.1
++                onExited: undo.scale = 1
++                onClicked: {
++                    Activity.selectTool("Undo")
++                    activity.audioEffects.play('qrc:/gcompris/src/core/resource/sounds/scroll.wav')
++                }
++            }
++        }
+ 
+         Rectangle {
+             id: activeColor
+-            height: parent.height * 0.80
+-            width: height
++            height: undo.height - 4
++            width: activeConfiguration.width / 5.2
+             color: items.paintColor
+             radius: 10
+-            anchors.horizontalCenter: parent.horizontalCenter
+-            anchors.horizontalCenterOffset: -width / 2
+-            anchors.bottom: parent.bottom
+-            anchors.bottomMargin: 2
++            anchors.verticalCenter: parent.verticalCenter
++            anchors.left: undo.right
++            anchors.leftMargin: 5
+             border.width: 2
+             border.color: "white"
+         }
++
+         Image {
+             id: activeTool
+             source: activeToolIconSource
+-            height: parent.height * 0.75
+-            width: height
++            height: undo.height
++            width: activeConfiguration.width / 5.2
+             fillMode: Image.PreserveAspectFit
+             anchors.left: activeColor.right
+-            anchors.leftMargin: 10
+-            anchors.verticalCenter: activeColor.verticalCenter
++            anchors.verticalCenter: parent.verticalCenter
++        }
++
++        Image {
++            id: redo
++            source: "qrc:/gcompris/src/activities/drawing/resource/redo.svg"
++            height: undo.height
++            width: activeConfiguration.width / 5.2
++            anchors.verticalCenter: parent.verticalCenter
++            anchors.left: activeTool.right
++            MouseArea {
++                anchors.fill: parent
++                hoverEnabled: true
++                onEntered: redo.scale = 1.1
++                onExited: redo.scale = 1
++                onClicked: {
++                    Activity.selectTool("Redo")
++                    activity.audioEffects.play('qrc:/gcompris/src/core/resource/sounds/scroll.wav')
++                }
++            }
+         }
+     }
+ 
+@@ -316,7 +357,10 @@ Item {
+             to: - mainPanel.height
+             duration: 200
+             easing.type: Easing.InOutQuad
+-            onStarted: foldTitle.start()
++            onStarted: {
++                foldTitle.start()
++                activity.audioEffects.play('qrc:/gcompris/src/core/resource/sounds/scroll.wav')
++            }
+         }
+ 
+         // This mouseArea overrides the canvas region and avoid drawing through panel.
+@@ -331,7 +375,10 @@ Item {
+             to: 0
+             duration: 200
+             easing.type: Easing.InOutQuad
+-            onStarted: unfoldTitle.start()
++            onStarted: {
++                unfoldTitle.start()
++                activity.audioEffects.play('qrc:/gcompris/src/core/resource/sounds/scroll.wav')
++            }
+         }
+ 
+         GridView {
+diff --git a/src/activities/drawing/TextInputTool.qml b/src/activities/drawing/TextInputTool.qml
+index 9e6608d..1892d45 100644
+--- a/src/activities/drawing/TextInputTool.qml
++++ b/src/activities/drawing/TextInputTool.qml
+@@ -32,6 +32,7 @@ Rectangle {
+     radius: 10
+     z: 1000
+     opacity: 0
++    onOpacityChanged: canvas.updateDemoText()
+ 
+     property alias inputText: inputText
+     property string fontSize: "8px "
+diff --git a/src/activities/drawing/ToolsMode.qml b/src/activities/drawing/ToolsMode.qml
+index 4c42a9b..c762e51 100644
+--- a/src/activities/drawing/ToolsMode.qml
++++ b/src/activities/drawing/ToolsMode.qml
+@@ -33,8 +33,10 @@ Item {
+     property alias stampsModel: stampsModel
+     property alias opacitySliderValue: opacitySlider.value
+     property string activeStampImageSource: "qrc:/gcompris/src/activities/solar_system/resource/sun_clip.svg"
+-    property int activeStampWidth: 500
+-    property int activeStampHeight: 500
++    property real activeStampDimensionRatio: 1.0
++    property real activeStampHeight: 180.0
++    property real activeStampWidth: activeStampHeight //* activeStampDimensionRatio
++
+ 
+     ListModel {
+         id: pencilModes
+@@ -94,13 +96,14 @@ Item {
+ 
+     GridView {
+         id: modes
+-        width: parent.width * 0.50
+-        height: parent.height * 0.85
+-        cellWidth: width / 4.2
+-        cellHeight: height / 3.2
+-        anchors.verticalCenter: parent.verticalCenter
++        width: foldablePanels.mainPanel.width * 0.50
++        height: background.height * 0.30
++        cellWidth: width / 4
++        cellHeight: height / 3
++        anchors.top: parent.top
++        anchors.topMargin: 15
+         anchors.left: parent.left
+-        anchors.leftMargin: 40
++        anchors.leftMargin: 20
+         model: pencilModes
+         delegate: modesComponent
+     }
+@@ -123,14 +126,12 @@ Item {
+                 anchors.fill: parent
+                 onClicked: {
+                     if(modes.model !== stampsModel) {
++                        items.foldablePanels.activeToolIconSource = imgSource
+                         items.toolSelected = name
+                         items.lastToolSelected = name
+                         background.hideExpandedTools()
+                         console.log("Click on " + name)
+ 
+-                        // make the hover over the canvas false
+-                        area.hoverEnabled = false
+-
+                         // change the selectBrush tool
+                         timer.index = 0
+                         timer.start()
+@@ -150,7 +151,7 @@ Item {
+         id: toolsTipSize
+         anchors.left: modes.right
+         anchors.top: parent.top
+-        anchors.topMargin: 30
++        anchors.topMargin: items.toolSelected === "stamp" ? 100 : 30
+         anchors.leftMargin: 30
+     }
+ 
+@@ -179,6 +180,6 @@ Item {
+         anchors.topMargin: 10
+         fontSize: tinySize
+         color: "white"
+-        text: "Opacity"
++        text: qsTr("Opacity")
+     }
+ }
+diff --git a/src/activities/drawing/ToolsSize.qml b/src/activities/drawing/ToolsSize.qml
+index 62eb60e..0087435 100644
+--- a/src/activities/drawing/ToolsSize.qml
++++ b/src/activities/drawing/ToolsSize.qml
+@@ -28,8 +28,34 @@ Item {
+     width: items.foldablePanels.mainPanel.width * 0.30
+     height: items.foldablePanels.mainPanel.height * 0.35
+ 
++    Button {
++        style: GCButtonStyle { theme: "light" }
++        text: qsTr("Import an image")
++        width: parent.width
++        anchors.bottom: stampSizeslider.top
++        anchors.bottomMargin: background.width > background.height ? 50 : 30
++        visible: items.toolSelected === "stamp"
++        onClicked: {
++            items.fileDialog.open()
++            console.log("Opened file Dialog")
++        }
++    }
++
++    GCSlider {
++        id: stampSizeslider
++        width: parent.width
++        anchors.centerIn: parent
++        anchors.topMargin: 50
++        value: 180
++        minimumValue: 1
++        maximumValue: canvas.height
++        onValueChanged: items.toolsMode.activeStampHeight = value
++        stepSize: 80
++        visible: items.toolSelected === "stamp"
++    }
++
+     GCSlider {
+-        id: slider
++        id: toolsTipSizeSlider
+         width: parent.width
+         anchors.centerIn: parent
+         value: items.sizeS
+@@ -37,13 +63,28 @@ Item {
+         maximumValue: 24
+         onValueChanged: items.sizeS = value
+         stepSize: 2
++        visible: items.toolSelected !== "stamp"
++    }
++
++    GCText {
++        width: background.width > background.height ? opacitySlider.width / 3 : opacitySlider.width / 2
++        anchors.horizontalCenter: toolsTipSizeSlider.horizontalCenter
++        horizontalAlignment: Text.AlignHCenter
++        verticalAlignment: Text.AlignVCenter
++        anchors.top: toolsTipSizeSlider.bottom
++        anchors.topMargin: 10
++        fontSize: tinySize
++        color: "white"
++        text: qsTr("Size")
++        visible: items.toolSelected === "stamp"
+     }
+ 
+     Row {
+         id: thicknessRow
+-        spacing: slider.width / 4.6
+-        x: slider.x
+-        anchors.bottom: slider.top
++        spacing: toolsTipSizeSlider.width / 4.6
++        x: toolsTipSizeSlider.x
++        anchors.bottom: toolsTipSizeSlider.top
++        visible: items.toolSelected !== "stamp"
+ 
+         Thickness { lineSize: 0.13 }
+         Thickness { lineSize: 0.66 }
+diff --git a/src/activities/drawing/drawing.js b/src/activities/drawing/drawing.js
+index 312b2b4..6142137 100644
+--- a/src/activities/drawing/drawing.js
++++ b/src/activities/drawing/drawing.js
+@@ -52,6 +52,7 @@ var ctx
+ var points = []
+ var connectedPoints = []
+ var reloadCanvas = false
++var redoMode = false
+ 
+ function start(items_) {
+     items = items_
+@@ -92,16 +93,16 @@ function initLevel() {
+     items.foldablePanels.toolsMode.opacitySliderValue = items.globalOpacityValue
+     items.canvas.requestPaint()
+ 
+-    items.next = false
+-    items.next2 = false
+-
+     undo = ["data:image/pngbase64,iVBORw0KGgoAAAANSUhEUgAAA4sAAAOLCAYAAAD5ExZjAAAACXBIWXMAAA7EAAAOxAGVKw4bAAATLElEQVR4nO3XsQ0AIRDAsOf33/lokTIAFPYEabNmZj4AAAA4/LcDAAAAeI9ZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgzCIAAABhFgEAAAizCAAAQJhFAAAAwiwCAAAQZhEAAIAwiwAAAIRZBAAAIMwiAAAAYRYBAAAIswgAAECYRQAAAMIsAgAAEGYRAACAMIsAAACEWQQAACDMIgAAAGEWAQAACLMIAABAmEUAAADCLAIAABBmEQAAgDCLAAAAhFkEAAAgNq0MCxI5gV9wAAAAAElFTkSuQmCC"]
+ 
+     // if the width/height is changed, the drawing is reset and repainted the last image saved
+     if (items.widthHeightChanged) {
+         // load the image
+         items.canvas.url = items.lastUrl
+-        items.canvas.loadImage(items.lastUrl)
++        ctx = items.canvas.getContext("2d")
++        ctx.clearRect(0, 0, items.background.width, items.background.height)
++        ctx.drawImage(items.canvas.url, 0, 0, items.canvas.width, items.canvas.height)
++        items.canvas.requestPaint()
+         // reset the flag to false
+         items.widthHeightChanged = false
+     }
+@@ -228,6 +229,25 @@ function saveToFile(showMessage) {
+     items.nothingChanged = true
+ }
+ 
++function handleKeyNavigations(event) {
++    if(event.modifiers === Qt.ControlModifier && event.key === Qt.Key_Z) {
++        selectTool("Undo")
++    }
++    else if(event.modifiers === Qt.ControlModifier && event.key === Qt.Key_Y) {
++        selectTool("Redo")
++    }
++    else if(event.modifiers === Qt.ControlModifier && event.key === Qt.Key_N) {
++        selectTool("Erase all")
++    }
++    else if(event.modifiers === Qt.ControlModifier && event.key === Qt.Key_S) {
++        selectTool("Save")
++    }
++    else if(event.modifiers === Qt.ControlModifier && event.key === Qt.Key_O) {
++        selectTool("Load")
++    }
++
++}
++
+ // Exports the current drawing in png format.
+ function exportToPng() {
+     var path =  GCompris.ApplicationInfo.getSharedWritablePath() + "/drawing"
+@@ -289,6 +309,7 @@ function selectTool(toolName) {
+         items.globalOpacityValue = 1
+         items.foldablePanels.toolsMode.opacitySliderValue = items.globalOpacityValue
+         items.toolSelected = "eraser"
++        items.toolsMode.modesModel = items.toolsMode.pencilModes
+         items.background.hideExpandedTools()
+         items.background.reloadSelectedPen()
+     }
+@@ -316,47 +337,43 @@ function selectTool(toolName) {
+     }
+     else if(toolName === "Undo") {
+         items.background.hideExpandedTools()
+-        if (undo.length > 0 && items.next ||
+-                undo.length > 1 && items.next == false) {
+-            items.undoRedo = true
+-
+-            if (items.next) {
+-                redo = redo.concat(undo.pop())
++        if(undo.length > 1 ) {
++            var temp = undo.pop()
++            redo = redo.concat(temp)
++            if(redoMode) {
++                items.urlImage = temp
+             }
+-
+-            items.next = false
+-            items.next2 = true
+-
+-            // pop the last image saved from "undo" array
+-            items.urlImage = undo.pop()
+-
+-            // load the image in the canvas
+-            items.canvas.loadImage(items.urlImage)
+-
+-            // save the image into the "redo" array
+-            redo = redo.concat(items.urlImage)
+-
+-            // print("undo:   " + undo.length + "  redo:  " + redo.length + "     undo Pressed")
++            else {
++                items.urlImage = undo[undo.length - 1]
++            }
++            items.canvas.ctx.globalCompositeOperation = 'source-over'
++            ctx = items.canvas.getContext("2d")
++            ctx.clearRect(0, 0, items.background.width, items.background.height)
++            ctx.drawImage(items.urlImage, 0, 0, items.canvas.width, items.canvas.height)
++            items.canvas.requestPaint()
++        }
++        else {
++            console.log("Undo array Empty!")
+         }
+     }
+     else if(toolName === "Redo") {
+         items.background.hideExpandedTools()
+-        if (redo.length > 0) {
+-            items.undoRedo = true
+-
+-            if (items.next2) {
+-                undo = undo.concat(redo.pop())
+-            }
+-
+-            items.next = true
+-            items.next2 = false
+-
++        if(redo.length > 0) {
++            redoMode = true
+             items.urlImage = redo.pop()
+-
+-            items.canvas.loadImage(items.urlImage)
++            ctx = items.canvas.getContext("2d")
++            ctx.clearRect(0, 0, items.background.width, items.background.height)
++            ctx.drawImage(items.urlImage, 0, 0, items.canvas.width, items.canvas.height)
++            items.canvas.requestPaint()
+             undo = undo.concat(items.urlImage)
++            console.log("undo length: " + undo.length)
+ 
+-            // print("undo:   " + undo.length + "  redo:  " + redo.length + "     redo Pressed")
++            if(redo.length == 0) {
++                redoMode = false
++            }
++        }
++        else {
++            console.log("Redo array Empty!")
+         }
+     }
+     else if(toolName === "Load") {
+@@ -408,7 +425,6 @@ function selectTool(toolName) {
+         items.stampGhostImage.z = 1500
+         items.stampGhostImage.x = items.area.realMouseX
+         items.stampGhostImage.y = items.area.realMouseY
+-        // enable the image to follow the cursor movement
+     }
+ 
+     else if(toolName === "Brush") {
